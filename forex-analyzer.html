@@ -415,6 +415,45 @@ footer { border-top:1px solid var(--border); padding:20px 0; text-align:center; 
 .paste-thumb img { height:50px; border-radius:4px; object-fit:cover; border:1px solid var(--border); }
 .paste-thumb-label { position:absolute; top:2px; left:2px; font-size:8px; background:rgba(0,0,0,0.7); color:var(--gold); padding:1px 4px; border-radius:2px; }
 
+/* RULE CHECKLIST PANEL */
+.checklist-panel {
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:14px; margin-bottom:14px;
+}
+.checklist-title {
+  font-size:9px; letter-spacing:0.14em; color:var(--text); font-weight:700;
+  margin-bottom:10px; display:flex; align-items:center; justify-content:space-between;
+}
+.checklist-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px;
+}
+.check-item {
+  display:flex; align-items:center; gap:8px;
+  background:var(--surface); border-radius:6px; padding:7px 10px;
+  border:1px solid var(--border);
+}
+.check-item.pass { border-color:rgba(0,255,136,0.3); background:rgba(0,255,136,0.05); }
+.check-item.fail { border-color:rgba(255,59,59,0.3); background:rgba(255,59,59,0.05); }
+.check-item.pending { border-color:var(--border); }
+.check-box {
+  width:16px; height:16px; border-radius:4px; border:1.5px solid var(--border);
+  display:flex; align-items:center; justify-content:center; font-size:10px; flex-shrink:0;
+}
+.check-box.pass { background:var(--green); border-color:var(--green); color:#000; }
+.check-box.fail { background:var(--red); border-color:var(--red); color:#fff; }
+.check-label { font-size:10px; color:var(--muted); }
+.check-label.pass { color:var(--green); }
+.check-label.fail { color:var(--red); }
+.prob-bar-wrap { margin-top:8px; }
+.prob-bar-label { font-size:9px; letter-spacing:0.1em; color:var(--muted); margin-bottom:4px; display:flex; justify-content:space-between; }
+.prob-bar-bg { height:8px; background:var(--surface); border-radius:4px; overflow:hidden; border:1px solid var(--border); }
+.prob-bar-fill { height:100%; border-radius:4px; transition:width 0.5s; }
+.failed-rule-box {
+  margin-top:8px; padding:8px 12px; border-radius:6px;
+  background:rgba(255,59,59,0.08); border:1px solid rgba(255,59,59,0.3);
+  font-size:11px; color:var(--red);
+}
+
 /* CHART READING VERIFICATION PANEL */
 .chart-reading-panel {
   background:var(--card); border:1px solid var(--border); border-radius:10px;
@@ -911,95 +950,102 @@ async function analyze(){
     content.push({type:'image',source:{type:'base64',media_type:cfImg.split(';')[0].replace('data:',''),data:cfImg.split(',')[1]}});
   }
 
-  const sysPrompt = `You are APEX CORE — a professional forex trading analysis system for ${pair}.
+  const sysPrompt = `You are APEX CORE — a strict sequential trading engine for ${pair}.
 
-YOUR ROLE: You are an ANALYST only. Never tell the trader to enter directly. Guide them through a 2-stage confirmation process.
+YOU ARE NOT ALLOWED TO OVERRIDE RULES. YOU MUST NOT TAKE PARTIAL SETUPS. YOU MUST NOT ASSUME STRUCTURE.
+If ANY rule fails → immediately output NO TRADE and state which rule failed. Do not continue evaluating further rules.
 
-INDICATORS ON CHARTS: Each chart includes EMA 20 (orange/fast), EMA 50 (blue/medium), EMA 100 (purple), EMA 200 (red/slow), Volume bars, and RSI 14. Use ALL of these in your analysis.
+INDICATORS ON CHARTS: Each chart includes EMA 20 (orange/fast), EMA 50 (blue/medium), EMA 100 (purple), EMA 200 (red/slow), Volume bars, RSI 14. Use ALL in analysis.
+
+═══════════════════════════════════════
+SEQUENTIAL RULE ENGINE — EVALUATE IN ORDER
+═══════════════════════════════════════
+
+RULE 1 — WEEKLY TREND:
+- Price above EMA 200 on Weekly → BUY bias only
+- Price below EMA 200 on Weekly → SELL bias only
+- Weekly EMAs all sloping same direction → trend confirmed
+- FAIL condition: Weekly trend is unclear or conflicting → NO TRADE. Rule failed: Weekly Trend
+
+RULE 2 — DAILY ALIGNMENT:
+- Daily must agree with Weekly direction
+- Price above EMA 50 on Daily + Weekly bullish → BUY confirmed
+- Price below EMA 50 on Daily + Weekly bearish → SELL confirmed
+- RSI on Daily must not be extreme opposite (no RSI 70+ for BUY, no RSI 30- for SELL)
+- FAIL condition: Daily opposes Weekly, or Daily RSI extreme opposite → NO TRADE. Rule failed: Daily Alignment
+
+RULE 3 — BREAK OF STRUCTURE (BOS):
+- Must see a confirmed BOS on 4H or 1H — a clear break of a previous swing high (BUY) or swing low (SELL)
+- BOS must be on a candle close, not just a wick
+- FAIL condition: No clear BOS visible on 4H or 1H → NO TRADE. Rule failed: BOS Confirmed
+
+RULE 4 — PULLBACK CONFIRMATION:
+- After BOS, price must pull back to a key level (EMA 20/50, S&R zone, FVG, 50-61.8% Fib)
+- Pullback must show rejection: rejection wick, engulfing candle, MSS, or liquidity sweep reversal
+- FAIL condition: No pullback to key level, or no rejection signal → NO TRADE. Rule failed: Pullback Confirmed
+
+RULE 5 — ATR FILTER:
+- The setup must have sufficient pip range to be tradeable
+- EURUSD: minimum 30 pip range on 4H candle required
+- If recent candles are very small (consolidation/low volatility) → setup is invalid
+- FAIL condition: Market in tight consolidation, ATR too low for viable SL/TP → NO TRADE. Rule failed: ATR Valid
+
+RULE 6 — SESSION FILTER:
+- Valid sessions: London (2AM-8AM EST), NY (8AM-5PM EST), London/NY overlap (8AM-12PM EST)
+- Asia session (7PM-2AM EST) = invalid for new entries unless STRONG 5/5 setup
+- FAIL condition: Asia session with less than STRONG setup → NO TRADE. Rule failed: Session Valid
+
+RULE 7 — NEWS FILTER:
+- NEVER enter within 24 hours of: NFP, CPI, Fed Rate Decision, FOMC, GDP, Elections
+- Current time: ${now} — check if any major news is imminent
+- FAIL condition: Major news event within 24 hours → NO TRADE. Rule failed: No News Event
+
+RULE 8 — RISK TO REWARD:
+- Calculate R:R to TP2 BEFORE deciding
+- Minimum R:R = 1:3 to TP2 — NON NEGOTIABLE
+- TP1 must be minimum 1.5x SL distance
+- FAIL condition: R:R below 1:3 → NO TRADE. Rule failed: RR ≥ 1:3
+
+RULE 9 — PROBABILITY THRESHOLD:
+- Count confluence factors: EMA alignment, RSI confirmation, volume spike, key level test count, BOS quality, session timing
+- Minimum 65% probability score required
+- Score = (confluence factors confirmed / total possible) × 100
+- FAIL condition: Score below 65% → NO TRADE. Rule failed: Probability ≥ 65%
+
+═══════════════════════════════════════
+IF ALL 9 RULES PASS → TRADE APPROVED
+If any rule fails → NO TRADE immediately
+═══════════════════════════════════════
 
 EMA RULES:
-- Price below EMA 200 → only consider SELLS
-- Price above EMA 200 → only consider BUYS  
+- Price below EMA 200 → only SELLS
+- Price above EMA 200 → only BUYS
 - EMA 20 crossing below EMA 50 → bearish momentum confirmed
-- EMA 20 crossing above EMA 50 → bullish momentum confirmed
-- All EMAs sloping same direction → strong trend confirmation
-- Price bouncing off EMA 100 → dynamic support/resistance
+- All EMAs sloping same direction → strong trend
 
 RSI RULES:
-- RSI above 70 at resistance → overbought, strong SELL signal
-- RSI below 30 at support → oversold, strong BUY signal
-- RSI divergence (price makes new high but RSI doesn't) → reversal warning
-- RSI between 40-60 → no strong signal, wait for extremes
+- RSI above 70 at resistance → overbought SELL signal
+- RSI below 30 at support → oversold BUY signal
+- RSI divergence → reversal warning
 
 VOLUME RULES:
-- High volume on bearish candle at resistance → institutional selling confirmed
-- High volume on bullish candle at support → institutional buying confirmed
-- Low volume on move → weak signal, wait for volume confirmation
-
-TOP-DOWN ANALYSIS ORDER: Weekly → Daily → 4H → 1H → 15M → 5M
-
-TRADE VALIDITY:
-- 5/5 timeframes aligned = STRONG (85-95% confidence) → SL 60-100 pips from 4H swing
-- 4/5 timeframes aligned = GOOD (70-84% confidence) → SL 40-70 pips from 1H swing
-- 3/5 timeframes aligned = VALID (55-69% confidence) → SL 20-40 pips from 15M swing
-- Below 3/5 = NO TRADE
-
-ENTRY RULES — must be ONE of:
-1. Rejection candle at key level (wick + close away from level)
-2. Bullish/bearish engulfing at structure
-3. Market Structure Shift (MSS) — new higher high in downtrend or lower low in uptrend
-4. Fair Value Gap (FVG) fill + rejection
-5. Liquidity sweep — price grabs highs/lows then reverses
-6. EMA 200 bounce with RSI confirmation
-
-KEY LEVEL RULES:
-- Level must have been tested minimum 2 times to be valid
-- Daily/Weekly S&R zones, previous swing highs/lows, round numbers, FVG zones, liquidity pools
-- Never trade mid-range — only at key levels
-
-ENTRY TYPE:
-- TYPE 1 IMMEDIATE: 4+ TFs aligned + strong momentum → entry at CURRENT price ± 5-10 pips
-- TYPE 2 RETEST: 3 TFs aligned or moderate momentum → wait for pullback to nearest key level
+- High volume on directional candle at key level → institutional confirmation
+- Low volume → weak signal, wait
 
 SL PLACEMENT:
-- Always place beyond a structural level (swing high/low), never at round numbers
-- Add 5-10 pips buffer beyond the structural level
-
-⛔ HARD RULE — MINIMUM R:R — NON NEGOTIABLE — NO EXCEPTIONS:
-- You MUST calculate the R:R to TP2 BEFORE outputting any result
-- If R:R to TP2 is below 1:3 → you MUST output NO TRADE. Period.
-- This rule CANNOT be overridden by strong confluence, high confidence, or good setup quality
-- A 1:2 R:R is NOT acceptable even with 5/5 timeframes aligned
-- A 1:2.5 R:R is NOT acceptable even with perfect entry signal
-- Only R:R of 1:3 or higher qualifies as a valid trade
-- If levels do not give 1:3 → output NO TRADE and explain the levels don't offer enough reward
-- TP1 must be at least 1:1.5 R:R minimum — if TP1 is closer than 1.5x the SL distance → the setup is weak
-- CALCULATE FIRST, DECIDE SECOND — never confirm an entry without verifying R:R meets minimum
+- Always beyond structural level (swing high/low) + 5-10 pip buffer
+- Never at round numbers
 
 TP PLACEMENT:
-- TP1 = nearest key S/R level (partial profit) — must be minimum 1.5x SL distance
-- TP2 = next major level (full target) — must be minimum 3x SL distance
+- TP1 = nearest S/R (min 1.5x SL distance)
+- TP2 = next major level (min 3x SL distance)
 - Minimum RR: ${rr}
-- If natural TP levels don't meet minimum RR → NO TRADE, do not force levels
 
-STRATEGY CONFLUENCE (check all that apply):
-- ICT/SMC: Liquidity sweep + order block + FVG
-- Price Action: Rejection candle + structure
-- Support/Resistance: Level tested 2+ times
-- Trend Following: EMA alignment + slope direction
-- Fibonacci: 50-61.8% retracement zone + key level = higher probability
-
-SESSION RULES:
-- London (2AM-8AM EST) + NY (8AM-5PM EST) = valid sessions for entries
-- Asia session = low volume, avoid new entries unless very clear setup
-- NY Open (8-10AM EST) = highest probability for momentum moves
-
-⛔ HARD RULE — NEWS EVENTS — NON NEGOTIABLE:
-- NEVER confirm a trade entry within 24 hours of a major news event
-- Major news = NFP (Non-Farm Payrolls), CPI, Fed Rate Decision, Presidential Elections, GDP, FOMC
-- If a major news event is due within 24 hours → output WAIT or NO TRADE and warn the trader
-- News events cause fake moves that invalidate all technical analysis
-- A perfect technical setup is worthless if a news event can wipe it instantly
+TRADE VALIDITY:
+- 5/5 timeframes aligned = STRONG (85-95%) → SL 60-100 pips from 4H swing
+- 4/5 timeframes aligned = GOOD (70-84%) → SL 40-70 pips from 1H swing
+- 3/5 timeframes aligned = VALID (55-69%) → SL 20-40 pips from 15M swing
+- Below 3/5 = NO TRADE
 
 2-STAGE PROCESS:
 
@@ -1035,6 +1081,19 @@ CRITICAL OUTPUT RULE: Respond ONLY with valid JSON. No markdown, no prose outsid
 
 JSON FORMAT:
 {
+  "rule_checklist": {
+    "weekly_trend": true or false,
+    "daily_alignment": true or false,
+    "bos_confirmed": true or false,
+    "pullback_confirmed": true or false,
+    "atr_valid": true or false,
+    "session_valid": true or false,
+    "no_news": true or false,
+    "rr_valid": true or false,
+    "probability_valid": true or false,
+    "failed_rule": "rule name that failed or null if all passed",
+    "probability_score": number 0-100
+  },
   "pair": "${pair}",
   "chart_reading": {
     "current_price": "exact current price you see on charts",
@@ -1139,6 +1198,46 @@ function showResult(r){
 
   const hasLevels = r.entry_zone && r.entry_zone !== 'N/A';
 
+  const rc = r.rule_checklist || {};
+  const checks = [
+    {key:'weekly_trend', label:'Weekly Trend'},
+    {key:'daily_alignment', label:'Daily Alignment'},
+    {key:'bos_confirmed', label:'BOS Confirmed'},
+    {key:'pullback_confirmed', label:'Pullback Confirmed'},
+    {key:'atr_valid', label:'ATR Valid'},
+    {key:'session_valid', label:'Session Valid'},
+    {key:'no_news', label:'No News Event'},
+    {key:'rr_valid', label:'RR ≥ 1:3'},
+    {key:'probability_valid', label:'Probability ≥ 65%'}
+  ];
+  const allPass = checks.every(c => rc[c.key] === true);
+  const probScore = rc.probability_score || 0;
+  const probColor = probScore >= 65 ? 'var(--green)' : probScore >= 50 ? 'var(--gold)' : 'var(--red)';
+
+  const checklistPanel = `
+  <div class="checklist-panel">
+    <div class="checklist-title">
+      <span>🔍 TRADE RULE CHECKLIST</span>
+      <span style="color:${allPass?'var(--green)':'var(--red)'}; font-size:11px">${allPass ? '✅ ALL RULES PASSED — TRADE APPROVED' : '❌ RULES FAILED — NO TRADE'}</span>
+    </div>
+    <div class="checklist-grid">
+      ${checks.map(c => {
+        const val = rc[c.key];
+        const cls = val === true ? 'pass' : val === false ? 'fail' : 'pending';
+        const icon = val === true ? '✓' : val === false ? '✕' : '?';
+        return `<div class="check-item ${cls}">
+          <div class="check-box ${cls}">${icon}</div>
+          <div class="check-label ${cls}">${c.label}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="prob-bar-wrap">
+      <div class="prob-bar-label"><span>PROBABILITY SCORE</span><span style="color:${probColor};font-weight:700">${probScore}%</span></div>
+      <div class="prob-bar-bg"><div class="prob-bar-fill" style="width:${probScore}%;background:${probColor}"></div></div>
+    </div>
+    ${rc.failed_rule ? `<div class="failed-rule-box">⚠ Rule failed: <strong>${rc.failed_rule}</strong></div>` : ''}
+  </div>`;
+
   const cr = r.chart_reading || {};
   const tfs = ['1W','1D','4H','1H','15M','5M'];
   const tfLabels = {'1W':'Weekly','1D':'Daily','4H':'4 Hour','1H':'1 Hour','15M':'15 Min','5M':'5 Min'};
@@ -1167,6 +1266,7 @@ function showResult(r){
 
   const html = `
   ${isBT?`<div class="bt-bar">⏪ BACKTEST MODE — ${btTime}</div>`:''}
+  ${checklistPanel}
   ${crPanel}
   <div class="result-card">
     <div class="rh ${rhClass}">
